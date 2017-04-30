@@ -6,6 +6,7 @@ import sys
 import pickle
 import subprocess
 import logging
+import re
 from time import sleep
 from xdg.BaseDirectory import *
 
@@ -63,6 +64,10 @@ class Node:
         # This is a client
         elif isinstance(self, Client):
             # Start this process
+            # Hack for chrome
+            chrome_check = re.match(".*(google-chrome[-beta]+).*", self.data['process'])
+            if chrome_check is not None:
+                self.data['process'] = chrome_check.group(1)
             logging.debug("exec %s", self.data['process'])
             i3.command('exec', self.data['process'])
             Tree.sleep_until_changed()
@@ -70,7 +75,7 @@ class Node:
             Tree.sleep_until_changed()
         elif isinstance(self, Container):
             pass
-            
+
 class Workspace(Node): pass
 class Client(Node): pass
 class Container(Node): pass
@@ -89,7 +94,7 @@ class Tree():
             # Window ID is set for this client
             elif n['window']:
                 # get process from xprop
-                node = Node(n) 
+                node = Node(n)
                 n[u'process'] = node.get_wm_class()
 
         return nodes
@@ -99,15 +104,15 @@ class Tree():
     def restore(self, nodes, parent = None, only_workspace = None):
         for n in nodes:
             if 'num' in n:
-                node = Workspace(n, parent) 
+                node = Workspace(n, parent)
             elif 'process' in n:
-                node = Client(n, parent) 
+                node = Client(n, parent)
             else:
-                node = Container(n, parent) 
+                node = Container(n, parent)
 
             logging.debug(node)
             node.restore()
-            
+
             # Recurse subtree
             if node.has_children() == True:
                 if only_workspace and isinstance(node, Workspace) and str(node.data['num']) != only_workspace:
@@ -136,7 +141,7 @@ def show_help():
     print(sys.argv[0] + " <save|restore> [workspace]")
 
 if __name__ == '__main__':
-    # logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
     # If ~/.i3 doesn't exist use XDG_CONFIG_DIR
     home = os.getenv("HOME")
@@ -157,7 +162,7 @@ if __name__ == '__main__':
 
         # traverse tree and assign node processes before storing
         if session['nodes']:
-            session['nodes'] = Tree.assign_processes(session['nodes']) 
+            session['nodes'] = Tree.assign_processes(session['nodes'])
 
         pickle.dump(session, open(config_file, "wb"))
         print "Session saved to " + config_file
@@ -177,7 +182,7 @@ if __name__ == '__main__':
             if len(sys.argv) > 2:
                 Tree.restore(session['nodes'], None, sys.argv[2])
             else:
-                Tree.restore(session['nodes']) 
+                Tree.restore(session['nodes'])
 
         nag_bar.terminate()
         print "Session restored from " + config_file
